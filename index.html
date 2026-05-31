@@ -10,9 +10,9 @@
         import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // VERIFIED CONFIGURATION
+        // FINAL VERIFIED CONFIGURATION
         const firebaseConfig = {
-            apiKey: "AIzaSyCiJ7s3HQLzhZii4vJapN4E_3C92K7mX20", // Fully verified key
+            apiKey: "AIzaSyCIj7s3HQLzhZii4vJajOjbKLZrotZBmBE", 
             authDomain: "myjeetracker-36bac.firebaseapp.com",
             projectId: "myjeetracker-36bac",
             storageBucket: "myjeetracker-36bac.appspot.com",
@@ -26,18 +26,21 @@
         const db = getFirestore();
         const provider = new GoogleAuthProvider();
 
+        // Login Function
         window.login = () => {
             signInWithRedirect(auth, provider).catch((error) => {
-                alert("Trigger Error: " + error.message);
+                alert("Login Trigger Error: " + error.message);
             });
         };
 
+        // Handle Redirect Result
         getRedirectResult(auth).catch((error) => {
             if(error.code !== "auth/redirect-cancelled-by-user") {
-                alert("Google Return Error: " + error.message);
+                alert("Auth Error: " + error.message);
             }
         });
 
+        // UI Switcher
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('loginPage').classList.add('hidden');
@@ -48,13 +51,15 @@
             }
         });
 
+        // Matrix Calculation Logic
         window.calculateMatrix = () => {
             const getVal = (id) => parseInt(document.getElementById(id).value) || 0;
+            
             const pPts = getVal('p_b')*5 + getVal('p_m')*10 + getVal('p_i')*15 + getVal('p_a')*30 + getVal('p_o')*50;
             const cPts = getVal('c_b')*5 + getVal('c_m')*10 + getVal('c_i')*15 + getVal('c_a')*30 + getVal('c_o')*50;
             const mPts = getVal('m_b')*5 + getVal('m_m')*10 + getVal('m_i')*15 + getVal('m_a')*30 + getVal('m_o')*50;
+            
             const basePoints = pPts + cPts + mPts;
-
             const ftcBonus = getVal('ftc') * 3;
             const sillyMains = getVal('silly_m') * 2;
             const sillyAdv = getVal('silly_a') * 5;
@@ -68,18 +73,11 @@
             const net = gross - distPenalty - subPenalty;
             const hours = parseFloat(document.getElementById('studyHours').value) || 0;
             let density = hours > 0 ? (net / hours).toFixed(1) : 0;
-            if (density > 20 && hours > 0) density = "20.0 (Max)";
 
             document.getElementById('grossDisplay').innerText = gross;
             document.getElementById('netDisplay').innerText = net;
             document.getElementById('imbalanceDisplay').innerText = subPenalty > 0 ? "-20" : "0";
             document.getElementById('densityDisplay').innerText = density;
-        };
-
-        window.setupListeners = () => {
-            document.querySelectorAll('input[type="number"]').forEach(input => {
-                input.addEventListener('input', calculateMatrix);
-            });
         };
 
         window.saveEntry = async () => {
@@ -97,12 +95,17 @@
 
             try {
                 await setDoc(doc(db, "users", user.uid, "entries", date), data);
-                alert("Day " + date + " Protocol Synced Successfully!");
+                alert("Day " + date + " Data Synced Successfully!");
             } catch (e) {
-                alert("Cloud Sync Fail: Check Firestore Rules.");
+                alert("Sync Error: Check if Firestore Rules are set to public.");
             }
         };
 
+        window.setupListeners = () => {
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('input', calculateMatrix);
+            });
+        };
         setTimeout(window.setupListeners, 500);
     </script>
     <style>
@@ -127,28 +130,28 @@
         </header>
 
         <div class="glass">
-            <h3 class="section-title">Sec I: Question Breakdown</h3>
+            <h3 class="section-title">Question Breakdown</h3>
             <div class="grid grid-cols-4 gap-2 text-[10px] text-center text-gray-400 mb-2">
-                <div>TIER / PTS</div><div>PHY</div><div>CHEM</div><div>MATH</div>
+                <div>TIER</div><div>PHY</div><div>CHEM</div><div>MATH</div>
             </div>
             <div class="grid grid-cols-4 gap-2 mb-2 items-center">
-                <div class="text-[10px] text-right pr-2">Basic (5)</div>
+                <div class="text-[10px]">Basic (5)</div>
                 <input id="p_b" type="number" placeholder="0"><input id="c_b" type="number" placeholder="0"><input id="m_b" type="number" placeholder="0">
             </div>
             <div class="grid grid-cols-4 gap-2 mb-2 items-center">
-                <div class="text-[10px] text-right pr-2">Mains (10)</div>
+                <div class="text-[10px]">Mains (10)</div>
                 <input id="p_m" type="number" placeholder="0"><input id="c_m" type="number" placeholder="0"><input id="m_m" type="number" placeholder="0">
             </div>
             <div class="grid grid-cols-4 gap-2 mb-2 items-center">
-                <div class="text-[10px] text-right pr-2 text-emerald-400 font-bold">Inter (15)</div>
+                <div class="text-[10px] text-emerald-400 font-bold">Inter (15)</div>
                 <input id="p_i" type="number" placeholder="0"><input id="c_i" type="number" placeholder="0"><input id="m_i" type="number" placeholder="0">
             </div>
             <div class="grid grid-cols-4 gap-2 mb-2 items-center">
-                <div class="text-[10px] text-right pr-2 text-blue-400 font-bold">Adv (30)</div>
+                <div class="text-[10px] text-blue-400 font-bold">Adv (30)</div>
                 <input id="p_a" type="number" placeholder="0"><input id="c_a" type="number" placeholder="0"><input id="m_a" type="number" placeholder="0">
             </div>
-            <div class="grid grid-cols-4 gap-2 mb-2 items-center">
-                <div class="text-[10px] text-right pr-2 text-purple-400 font-bold">Olympiad (50)</div>
+            <div class="grid grid-cols-4 gap-2 items-center">
+                <div class="text-[10px] text-purple-400 font-bold">Oly (50)</div>
                 <input id="p_o" type="number" placeholder="0"><input id="c_o" type="number" placeholder="0"><input id="m_o" type="number" placeholder="0">
             </div>
         </div>
@@ -157,40 +160,40 @@
             <div>
                 <h3 class="section-title text-red-400">Distractions</h3>
                 <input id="dist_tally" type="number" placeholder="0">
-                <h3 class="section-title mt-4 text-yellow-400">Time Log</h3>
+                <h3 class="section-title mt-4 text-yellow-400">Study Hrs</h3>
                 <input id="studyHours" type="number" step="0.1" placeholder="0">
             </div>
             <div>
-                <h3 class="section-title text-emerald-400">Accuracy Box</h3>
-                <input id="ftc" type="number" placeholder="0" class="mb-2">
-                <input id="silly_m" type="number" placeholder="0" class="mb-2">
-                <input id="silly_a" type="number" placeholder="0">
+                <h3 class="section-title text-emerald-400">Accuracy</h3>
+                <input id="ftc" type="number" placeholder="FTC" class="mb-2">
+                <input id="silly_m" type="number" placeholder="Silly M" class="mb-2">
+                <input id="silly_a" type="number" placeholder="Silly A">
             </div>
         </div>
 
         <div class="glass bg-slate-800 border-blue-500">
             <div class="grid grid-cols-2 gap-4 text-center">
                 <div class="p-2 bg-slate-900 rounded-lg">
-                    <p class="text-[10px] text-gray-400 uppercase">Gross Points</p>
+                    <p class="text-[10px] text-gray-400">GROSS</p>
                     <p id="grossDisplay" class="text-xl font-bold">0</p>
                 </div>
-                <div class="p-2 bg-slate-900 rounded-lg border border-red-500/30">
-                    <p class="text-[10px] text-red-400">Imbalance Pen.</p>
+                <div class="p-2 bg-slate-900 rounded-lg">
+                    <p class="text-[10px] text-red-400">PENALTY</p>
                     <p id="imbalanceDisplay" class="text-xl font-bold text-red-400">0</p>
                 </div>
                 <div class="p-2 bg-slate-900 rounded-lg border border-emerald-500/50">
-                    <p class="text-[10px] text-emerald-400 uppercase">Net Points</p>
+                    <p class="text-[10px] text-emerald-400">NET</p>
                     <p id="netDisplay" class="text-2xl font-bold text-emerald-400">0</p>
                 </div>
                 <div class="p-2 bg-blue-900/50 rounded-lg border border-blue-400">
-                    <p class="text-[10px] text-blue-300 uppercase">Density</p>
+                    <p class="text-[10px] text-blue-300">DENSITY</p>
                     <p id="densityDisplay" class="text-2xl font-bold text-blue-300">0.0</p>
                 </div>
             </div>
         </div>
 
-        <button onclick="saveEntry()" class="w-full bg-blue-600 py-4 rounded-xl font-bold">SYNC TO CLOUD</button>
+        <button onclick="saveEntry()" class="w-full bg-blue-600 py-4 rounded-xl font-bold shadow-lg active:bg-blue-700 transition">SYNC TO CLOUD</button>
     </div>
 </body>
     </html>
-                    
+    
