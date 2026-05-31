@@ -7,10 +7,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithCredential, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // YOUR FIREBASE CONFIGURATION
+        // CONFIGURATION MATCHING YOUR FIREBASE CONSOLE SHIELD
         const firebaseConfig = {
             apiKey: "AIzaSyCiJ7s3HQLzhZii4vJapN4", 
             authDomain: "myjeetracker-36bac.firebaseapp.com",
@@ -24,75 +24,79 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth();
         const db = getFirestore();
-        const provider = new GoogleAuthProvider();
 
-        // Mobile-Optimized Redirect Login
+        // 100% BULLETPROOF MANUAL PASSTHROUGH METHOD
         window.login = () => {
-            signInWithRedirect(auth, provider);
+            const targetUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+                              `client_id=779784201034-vjklq9f02u12o6g2bmnv29c1b97bgh6i.apps.googleusercontent.com` + 
+                              `&redirect_uri=https://myjeetracker-36bac.firebaseapp.com/__/auth/handler` +
+                              `&response_type=token%20id_token` +
+                              `&scope=openid%20email%20profile` +
+                              `&state=${window.location.origin}`;
+            
+            // Forcefully redirects the native window, bypassing all mobile restrictions
+            window.location.href = targetUrl;
         };
-        
-        // Handle the login result after redirecting back
-        getRedirectResult(auth).catch((error) => {
-            alert("Login Error: " + error.message);
-        });
 
+        // Check if returning from a successful validation loop
+        const hash = window.location.hash;
+        if (hash) {
+            const params = new URLSearchParams(hash.replace('#', '?'));
+            const idToken = params.get('id_token');
+            if (idToken) {
+                const credential = GoogleAuthProvider.credential(idToken);
+                signInWithCredential(auth, credential).then(() => {
+                    window.location.hash = ""; // Clean URL track
+                }).catch(err => alert("Auth verification error: " + err.message));
+            }
+        }
+
+        // Keep session persistent and switch UI cleanly
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('loginPage').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 document.getElementById('userGreeting').innerText = "Protocol Active: " + user.displayName.split(' ')[0];
                 document.getElementById('logDate').valueAsDate = new Date();
-                calculateMatrix(); // Run initial calculation
+                calculateMatrix(); 
             }
         });
 
-        // Auto-Calculate Matrix Logic
+        // Live calculation engine
         window.calculateMatrix = () => {
             const getVal = (id) => parseInt(document.getElementById(id).value) || 0;
-            
-            // Question Points
             const pPts = getVal('p_b')*5 + getVal('p_m')*10 + getVal('p_i')*15 + getVal('p_a')*30 + getVal('p_o')*50;
             const cPts = getVal('c_b')*5 + getVal('c_m')*10 + getVal('c_i')*15 + getVal('c_a')*30 + getVal('c_o')*50;
             const mPts = getVal('m_b')*5 + getVal('m_m')*10 + getVal('m_i')*15 + getVal('m_a')*30 + getVal('m_o')*50;
-            
             const basePoints = pPts + cPts + mPts;
 
-            // Bonuses & Penalties
             const ftcBonus = getVal('ftc') * 3;
             const sillyMains = getVal('silly_m') * 2;
             const sillyAdv = getVal('silly_a') * 5;
-            
-            const tallies = getVal('dist_tally');
-            const distPenalty = Math.floor(tallies / 5) * 10;
+            const distPenalty = Math.floor(getVal('dist_tally') / 5) * 10;
 
-            // Subject Imbalance Penalty
             const maxSub = Math.max(pPts, cPts, mPts);
             const minSub = Math.min(pPts, cPts, mPts);
-            let subPenalty = 0;
-            if (maxSub - minSub > 40 && basePoints > 30) subPenalty = 20;
+            let subPenalty = (maxSub - minSub > 40 && basePoints > 30) ? 20 : 0;
 
-            // Calculations
             const gross = basePoints + ftcBonus - sillyMains - sillyAdv;
             const net = gross - distPenalty - subPenalty;
             const hours = parseFloat(document.getElementById('studyHours').value) || 0;
             let density = hours > 0 ? (net / hours).toFixed(1) : 0;
-
             if (density > 20 && hours > 0) density = "20.0 (Max)";
 
-            // Update UI
             document.getElementById('grossDisplay').innerText = gross;
             document.getElementById('netDisplay').innerText = net;
             document.getElementById('imbalanceDisplay').innerText = subPenalty > 0 ? "-20" : "0";
             document.getElementById('densityDisplay').innerText = density;
         };
 
-        // Attach listeners
         window.setupListeners = () => {
-            const inputs = document.querySelectorAll('input[type="number"]');
-            inputs.forEach(input => input.addEventListener('input', calculateMatrix));
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('input', calculateMatrix);
+            });
         };
 
-        // Save to Firebase
         window.saveEntry = async () => {
             const user = auth.currentUser;
             const date = document.getElementById('logDate').value;
@@ -110,13 +114,11 @@
                 await setDoc(doc(db, "users", user.uid, "entries", date), data);
                 alert("Day " + date + " Protocol Synced Successfully!");
             } catch (e) {
-                alert("Error saving: Make sure Rules are set to public in Firestore.");
-                console.error(e);
+                alert("Cloud Sync Fail: Check if Cloud Firestore rules are set to public.");
             }
         };
 
-        // Run listener setup
-        setTimeout(window.setupListeners, 1000);
+        setTimeout(window.setupListeners, 500);
     </script>
     <style>
         body { background: #0f172a; color: #f8fafc; font-family: sans-serif; }
@@ -128,14 +130,14 @@
 </head>
 <body class="p-4 pb-20">
 
-    <!-- LOGIN PAGE -->
+    <!-- LOGIN UI -->
     <div id="loginPage" class="h-screen flex flex-col items-center justify-center text-center">
         <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">JEE ELITE</h1>
         <p class="text-gray-400 mb-8 tracking-widest text-sm uppercase">Preparation Protocol</p>
         <button onclick="login()" class="bg-white text-black px-8 py-3 rounded-full font-bold shadow-xl active:scale-95 transition">Login with Google</button>
     </div>
 
-    <!-- MAIN APP -->
+    <!-- MAIN DASHBOARD -->
     <div id="mainApp" class="hidden max-w-md mx-auto space-y-4">
         <header class="flex justify-between items-center mb-6">
             <h2 id="userGreeting" class="text-sm font-bold text-emerald-400">Protocol Active</h2>
@@ -221,5 +223,5 @@
     </div>
 
 </body>
-    </html>
-    
+                                         </html>
+                                                                  
