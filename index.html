@@ -7,10 +7,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // FINAL VERIFIED CONFIGURATION
         const firebaseConfig = {
             apiKey: "AIzaSyCIj7s3HQLzhZii4vJajOjbKLZrotZBmBE", 
             authDomain: "myjeetracker-36bac.firebaseapp.com",
@@ -26,21 +25,21 @@
         const db = getFirestore();
         const provider = new GoogleAuthProvider();
 
-        // Login Function
+        // SWITCHED TO POPUP TO AVOID "MISSING STATE" ERRORS
         window.login = () => {
-            signInWithRedirect(auth, provider).catch((error) => {
-                alert("Login Trigger Error: " + error.message);
-            });
+            signInWithPopup(auth, provider)
+                .then((result) => {
+                    console.log("Success!");
+                })
+                .catch((error) => {
+                    if (error.code === 'auth/popup-blocked') {
+                        alert("Please allow popups for this site to login!");
+                    } else {
+                        alert("Login Error: " + error.message);
+                    }
+                });
         };
 
-        // Handle Redirect Result
-        getRedirectResult(auth).catch((error) => {
-            if(error.code !== "auth/redirect-cancelled-by-user") {
-                alert("Auth Error: " + error.message);
-            }
-        });
-
-        // UI Switcher
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 document.getElementById('loginPage').classList.add('hidden');
@@ -51,29 +50,23 @@
             }
         });
 
-        // Matrix Calculation Logic
         window.calculateMatrix = () => {
             const getVal = (id) => parseInt(document.getElementById(id).value) || 0;
-            
             const pPts = getVal('p_b')*5 + getVal('p_m')*10 + getVal('p_i')*15 + getVal('p_a')*30 + getVal('p_o')*50;
             const cPts = getVal('c_b')*5 + getVal('c_m')*10 + getVal('c_i')*15 + getVal('c_a')*30 + getVal('c_o')*50;
             const mPts = getVal('m_b')*5 + getVal('m_m')*10 + getVal('m_i')*15 + getVal('m_a')*30 + getVal('m_o')*50;
-            
             const basePoints = pPts + cPts + mPts;
             const ftcBonus = getVal('ftc') * 3;
             const sillyMains = getVal('silly_m') * 2;
             const sillyAdv = getVal('silly_a') * 5;
             const distPenalty = Math.floor(getVal('dist_tally') / 5) * 10;
-
             const maxSub = Math.max(pPts, cPts, mPts);
             const minSub = Math.min(pPts, cPts, mPts);
             let subPenalty = (maxSub - minSub > 40 && basePoints > 30) ? 20 : 0;
-
             const gross = basePoints + ftcBonus - sillyMains - sillyAdv;
             const net = gross - distPenalty - subPenalty;
             const hours = parseFloat(document.getElementById('studyHours').value) || 0;
             let density = hours > 0 ? (net / hours).toFixed(1) : 0;
-
             document.getElementById('grossDisplay').innerText = gross;
             document.getElementById('netDisplay').innerText = net;
             document.getElementById('imbalanceDisplay').innerText = subPenalty > 0 ? "-20" : "0";
@@ -84,7 +77,6 @@
             const user = auth.currentUser;
             const date = document.getElementById('logDate').value;
             if(!date) return alert("Select a date!");
-
             const data = {
                 grossPoints: document.getElementById('grossDisplay').innerText,
                 netPoints: document.getElementById('netDisplay').innerText,
@@ -92,12 +84,11 @@
                 studyHours: document.getElementById('studyHours').value,
                 timestamp: new Date()
             };
-
             try {
                 await setDoc(doc(db, "users", user.uid, "entries", date), data);
-                alert("Day " + date + " Data Synced Successfully!");
+                alert("Data Synced Successfully!");
             } catch (e) {
-                alert("Sync Error: Check if Firestore Rules are set to public.");
+                alert("Sync Error: Check Firestore Rules.");
             }
         };
 
@@ -195,5 +186,5 @@
         <button onclick="saveEntry()" class="w-full bg-blue-600 py-4 rounded-xl font-bold shadow-lg active:bg-blue-700 transition">SYNC TO CLOUD</button>
     </div>
 </body>
-    </html>
-    
+                                                                       </html>
+                
